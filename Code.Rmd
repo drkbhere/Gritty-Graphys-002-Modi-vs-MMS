@@ -1,0 +1,164 @@
+---
+title: "Movi vs MMS"
+output: html_document
+date: "2024-01-08"
+---
+
+Loading the packages I need
+```{r}
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Loading the data and cleaning the names
+```{r}
+data<- read.csv("currency.csv")
+data<- clean_names(data)
+```
+
+Plotting Exchange Rate: US Dollar to Indian Rupee
+```{r}
+# Plot the data
+p <- ggplot(data_filtered, aes(x = date, y = us_dollar)) +
+  geom_line(color = "black") +  # Plot the line for the US dollar exchange rate
+  
+  # Draw a vertical dashed line for when Narendra Modi became PM, refined with color and size
+  geom_vline(xintercept = as.numeric(modi_date), color = "black", linetype = "dashed", size = 0.25) +
+  
+  # Add text labels for the Prime Ministers, adjust vjust and hjust for optimal placement
+  annotate("text", x = as.Date("2009-01-01"), y = max(data_filtered$us_dollar, na.rm = TRUE) * 0.95,
+           label = "Manmohan Singh", hjust = 1, vjust = 2, size = 4, angle = 0, color = "black") +
+  annotate("text", x = as.Date("2017-01-01"), y = max(data_filtered$us_dollar, na.rm = TRUE) * 0.95,
+           label = "Narendra Modi", hjust = 0, vjust = 2, size = 4, angle = 0, color = "black") +
+  
+  # Format the x-axis dates
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  
+  # Enhance the plot theme for a minimalist and clean look
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    panel.grid.major.y = element_line(color = "grey80"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  
+  # Add titles and axis labels
+  labs(title = "Exchange Rate: US Dollar to Indian Rupee",
+       subtitle = "Source: Daily closing rates data from the RBI",
+       y = "Exchange Rate (INR per USD)",
+       x = "Year")  
+
+p
+```
+
+Plotting Exchange Rate for the other currencies
+```{r}
+# Function to plot exchange rates for a given currency
+plot_exchange_rate <- function(data, currency_column, currency_name) {
+  p <- ggplot(data, aes(x = date, y = !!sym(currency_column))) +
+    geom_line(color = "black") +
+    geom_vline(xintercept = as.numeric(modi_date), color = "blue", linetype = "dashed", size = 1) +
+    annotate("text", x = as.Date("2009-01-01"), y = max(data[[currency_column]], na.rm = TRUE) * 0.95,
+             label = "Manmohan Singh", hjust = 1, vjust = 2, size = 4, angle = 0, color = "black") +
+    annotate("text", x = as.Date("2017-01-01"), y = max(data[[currency_column]], na.rm = TRUE) * 0.95,
+             label = "Narendra Modi", hjust = 0, vjust = 2, size = 4, angle = 0, color = "black") +
+    scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+      panel.grid.major.y = element_line(color = "grey80"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5)
+    ) +
+    labs(title = paste("Exchange Rate:", currency_name, "to Indian Rupee"),
+         subtitle = "Daily closing rates, shaded by Prime Minister term",
+         y = paste("Exchange Rate (INR per", currency_name, ")"),
+         x = NULL)  # Remove x-axis label if desired
+  print(p)
+}
+
+# Plot for each currency
+plot_exchange_rate(data_filtered, "pound_sterling", "Pound Sterling")
+plot_exchange_rate(data_filtered, "euro", "Euro")
+plot_exchange_rate(data_filtered, "japanese_yen", "Japanese Yen")
+
+```
+The faceted approach
+```{r}
+# Reshape the data to long format
+data_long <- data_filtered %>%
+  pivot_longer(cols = c("us_dollar", "pound_sterling", "euro", "japanese_yen"),
+               names_to = "currency",
+               values_to = "exchange_rate")
+
+# Now, plot the data with facets for each currency
+p <- ggplot(data_long, aes(x = date, y = exchange_rate)) +
+  geom_line(color = "black") +
+  geom_vline(xintercept = as.numeric(modi_date), color = "blue", linetype = "dashed", size = 1) +
+  facet_wrap(~ currency, scales = "free_y", ncol = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 10, face = "bold"),
+    panel.grid.major.y = element_line(color = "grey80"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Exchange Rate to Indian Rupee",
+       subtitle = "Daily closing rates, shaded by Prime Minister term",
+       y = "Exchange Rate (INR)",
+       x = NULL)  # Remove x-axis label if desired
+
+# Display the plot
+print(p)
+
+```
+
+
+The all in one approach
+```{r}
+# Reshape the data to long format
+data_long <- data_filtered %>%
+  pivot_longer(cols = c("us_dollar", "pound_sterling", "euro", "japanese_yen"),
+               names_to = "currency",
+               values_to = "exchange_rate")
+
+# Plot the data with lines for each currency
+p <- ggplot(data_long, aes(x = date, y = exchange_rate, color = currency)) +
+  geom_line() +
+  geom_vline(xintercept = as.numeric(modi_date), color = "blue", linetype = "dashed", size = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(values = c("us_dollar" = "black", 
+                                "pound_sterling" = "red", 
+                                "euro" = "green", 
+                                "japanese_yen" = "purple")) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    panel.grid.major.y = element_line(color = "grey80"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Exchange Rate to Indian Rupee",
+       subtitle = "Daily closing rates, shaded by Prime Minister term",
+       y = "Exchange Rate (INR)",
+       x = NULL,  # Remove x-axis label if desired
+       color = "Currency")  # Legend title
+
+# Display the plot
+print(p)
+```
+
